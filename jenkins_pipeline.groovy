@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.9-slim'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     parameters {
         choice(name: 'COMMAND', choices: [
@@ -14,31 +9,22 @@ pipeline {
             'delete_cloudwatch_alarm', 
             'delete_sns_topic',
             'delete_lambda'
-        ], description: 'Select the resource you want to delete')
+        ], description: 'Select the resource to delete')
 
         string(name: 'AWS_ACCOUNT', defaultValue: '', description: 'AWS Account Number')
-        string(name: 'AWS_REGION', choices: ['eu-west-1', 'eu-west-2'], description: 'Select the AWS Region')
-        string(name: 'APPLICATION_NAME', defaultValue: '', description: 'CodeDeploy application name (if applicable)')
-        string(name: 'DEPLOYMENT_GROUP_NAME', defaultValue: '', description: 'Deployment group name (if applicable)')
-        string(name: 'SUBSCRIPTION_NAME', defaultValue: '', description: 'SNS subscription ARN (if applicable)')
-        string(name: 'ALARM_NAME', defaultValue: '', description: 'CloudWatch alarm name (if applicable)')
-        string(name: 'TOPIC_ARN', defaultValue: '', description: 'SNS topic ARN (if applicable)')
-        string(name: 'FUNCTION_ARN', defaultValue: '', description: 'Lambda function ARN (if applicable)')
+        choice(name: 'AWS_REGION', choices: ['eu-west-1', 'eu-west-2'], description: 'Select the AWS Region')
+        string(name: 'APPLICATION_NAME', defaultValue: '', description: 'Application name (required for delete_deployment_group, delete_application, Cloudwatch Alarms)')
+        string(name: 'DEPLOYMENT_GROUP_NAME', defaultValue: '', description: 'Deployment group name (required for delete_deployment_group)')
+        string(name: 'RESOURCE_ARN', defaultValue: '', description: 'Resource ARN (required for SNS subscriptions/topics, Lambda operations)')
     }
     
     environment {
-        AWS_ACCOUNT = params.AWS_ACCOUNT
-        AWS_REGION = params.AWS_REGION
+        AWS_ACCOUNT = "${params.AWS_ACCOUNT}"
+        AWS_REGION = "${params.AWS_REGION}"
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Install Dependencies') {
+        stage('Setup Python') {
             steps {
                 sh '''
                 python3 -m venv venv
@@ -56,7 +42,7 @@ pipeline {
                 ]]) {
                     script {
                         def cmd = ""
-                        switch (params.COMMAND) {
+                        switch(params.COMMAND) {
                             case 'delete_deployment_group':
                                 if (!params.APPLICATION_NAME?.trim() || !params.DEPLOYMENT_GROUP_NAME?.trim()) {
                                     error "APPLICATION_NAME and DEPLOYMENT_GROUP_NAME are required for delete_deployment_group"
@@ -69,29 +55,19 @@ pipeline {
                                 }
                                 cmd = "python3 deletion_script.py delete_application ${params.APPLICATION_NAME}"
                                 break
-                            case 'unsubscribe_sns':
-                                if (!params.SUBSCRIPTION_NAME?.trim()) {
-                                    error "SUBSCRIPTION_NAME is required for unsubscribe_sns"
-                                }
-                                cmd = "python3 deletion_script.py unsubscribe_sns ${params.SUBSCRIPTION_NAME}"
-                                break
                             case 'delete_cloudwatch_alarm':
-                                if (!params.ALARM_NAME?.trim()) {
-                                    error "ALARM_NAME is required for delete_cloudwatch_alarm"
+                                if (!params.APPLICATION_NAME?.trim()) {
+                                    error "APPLICATION_NAME is required for delete_cloudwatch_alarm"
                                 }
-                                cmd = "python3 deletion_script.py delete_cloudwatch_alarm ${params.ALARM_NAME}"
+                                cmd = "python3 deletion_script.py delete_cloudwatch_alarm ${params.APPLICATION_NAME}"
                                 break
+                            case 'unsubscribe_sns':
                             case 'delete_sns_topic':
-                                if (!params.TOPIC_ARN?.trim()) {
-                                    error "TOPIC_ARN is required for delete_sns_topic"
-                                }
-                                cmd = "python3 deletion_script.py delete_sns_topic ${params.TOPIC_ARN}"
-                                break
                             case 'delete_lambda':
-                                if (!params.FUNCTION_ARN?.trim()) {
-                                    error "FUNCTION_ARN is required for delete_lambda"
+                                if (!params.RESOURCE_ARN?.trim()) {
+                                    error "RESOURCE_ARN is required for ${params.COMMAND}"
                                 }
-                                cmd = "python3 deletion_script.py delete_lambda ${params.FUNCTION_ARN}"
+                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.RESOURCE_ARN}"
                                 break
                             default:
                                 error "Invalid command: ${params.COMMAND}"
