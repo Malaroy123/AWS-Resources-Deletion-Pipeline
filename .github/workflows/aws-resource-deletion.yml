@@ -14,6 +14,10 @@ on:
           - delete_cloudwatch_alarm
           - delete_sns_topic
           - delete_lambda
+      aws_account:
+        description: 'AWS Account Number'
+        required: true
+        type: string
       aws_region:
         description: 'AWS Region'
         required: true
@@ -21,12 +25,16 @@ on:
         options:
           - eu-west-1
           - eu-west-2
-      resource_identifier:
-        description: 'Resource Identifier (see description below for what to enter based on your selected command)'
+      resource_list:
+        description: 'Select the specific resource (enter manually for now - GitHub Actions does not support dynamic dropdowns)'
         required: true
         type: string
-      secondary_identifier:
-        description: 'Secondary Identifier (only required for delete_deployment_group - enter deployment group name)'
+      application_name:
+        description: 'CodeDeploy application name (required for delete_deployment_group and delete_application)'
+        required: false
+        type: string
+      deployment_group_name:
+        description: 'Deployment group name (required for delete_deployment_group)'
         required: false
         type: string
 
@@ -53,21 +61,46 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ github.event.inputs.aws_region }}
+        role-to-assume: arn:aws:iam::${{ github.event.inputs.aws_account }}:role/YourRoleName  # Add if using role assumption
         
     - name: Validate inputs
       run: |
         case "${{ github.event.inputs.command }}" in
           "delete_deployment_group")
-            if [ -z "${{ github.event.inputs.resource_identifier }}" ] || [ -z "${{ github.event.inputs.secondary_identifier }}" ]; then
-              echo "Error: Both application name and deployment group name are required for delete_deployment_group"
+            if [ -z "${{ github.event.inputs.application_name }}" ] || [ -z "${{ github.event.inputs.deployment_group_name }}" ]; then
+              echo "Error: APPLICATION_NAME and DEPLOYMENT_GROUP_NAME are required for delete_deployment_group"
+              exit 1
+            fi
+            ;;
+          "delete_application")
+            if [ -z "${{ github.event.inputs.application_name }}" ]; then
+              echo "Error: APPLICATION_NAME is required for delete_application"
               exit 1
             fi
             ;;
           *)
-            if [ -z "${{ github.event.inputs.resource_identifier }}" ]; then
-              echo "Error: Resource identifier is required"
+            if [ -z "${{ github.event.inputs.resource_list }}" ]; then
+              echo "Error: Resource selection is required"
               exit 1
             fi
+            ;;
+        esac
+        
+    - name: List Available Resources
+      run: |
+        echo "Available resources in account ${{ github.event.inputs.aws_account }} region ${{ github.event.inputs.aws_region }}:"
+        case "${{ github.event.inputs.command }}" in
+          "delete_deployment_group"|"delete_application")
+            aws deploy list-applications
+            ;;
+          "unsubscribe_sns"|"delete_sns_topic")
+            aws sns list-topics
+            ;;
+          "delete_cloudwatch_alarm")
+            aws cloudwatch describe-alarms --query 'MetricAlarms[].AlarmName'
+            ;;
+          "delete_lambda")
+            aws lambda list-functions --query 'Functions[].FunctionName'
             ;;
         esac
         
@@ -76,11 +109,16 @@ jobs:
         CMD="python deletion_script.py ${{ github.event.inputs.command }}"
         case "${{ github.event.inputs.command }}" in
           "delete_deployment_group")
-            CMD="$CMD ${{ github.event.inputs.resource_identifier }} ${{ github.event.inputs.secondary_identifier }}"
+            CMD="$CMD ${{ github.event.inputs.application_name }} ${{ github.event.inputs.deployment_group_name }}"
+            ;;
+          "delete_application")
+            CMD="$CMD ${{ github.event.inputs.application_name }}"
             ;;
           *)
-            CMD="$CMD ${{ github.event.inputs.resource_identifier }}"
+            CMD="$CMD ${{ github.event.inputs.resource_list }}"
             ;;
         esac
         echo "Executing: $CMD"
+        echo "AWS Account: ${{ github.event.inputs.aws_account }}"
+        echo "AWS Region: ${{ github.event.inputs.aws_region }}"
         $CMD 
