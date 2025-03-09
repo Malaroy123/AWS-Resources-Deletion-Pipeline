@@ -24,6 +24,11 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
         stage('Setup Python') {
             steps {
                 sh '''
@@ -41,7 +46,38 @@ pipeline {
             }
         }
 
-        stage('Run AWS Resource Deletion') {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    echo "Validating input parameters..."
+                    switch(params.COMMAND) {
+                        case 'delete_deployment_group':
+                            if (!params.APPLICATION_NAME?.trim() || !params.DEPLOYMENT_GROUP_NAME?.trim()) {
+                                error "APPLICATION_NAME and DEPLOYMENT_GROUP_NAME are required for delete_deployment_group"
+                            }
+                            break
+                        case 'delete_application':
+                        case 'delete_cloudwatch_alarm':
+                            if (!params.APPLICATION_NAME?.trim()) {
+                                error "APPLICATION_NAME is required for ${params.COMMAND}"
+                            }
+                            break
+                        case 'unsubscribe_sns':
+                        case 'delete_sns_topic':
+                        case 'delete_lambda':
+                            if (!params.RESOURCE_ARN?.trim()) {
+                                error "RESOURCE_ARN is required for ${params.COMMAND}"
+                            }
+                            break
+                        default:
+                            error "Invalid command: ${params.COMMAND}"
+                    }
+                    echo "Parameter validation successful"
+                }
+            }
+        }
+
+        stage('Delete AWS Resource') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -51,39 +87,22 @@ pipeline {
                         def cmd = ""
                         switch(params.COMMAND) {
                             case 'delete_deployment_group':
-                                if (!params.APPLICATION_NAME?.trim() || !params.DEPLOYMENT_GROUP_NAME?.trim()) {
-                                    error "APPLICATION_NAME and DEPLOYMENT_GROUP_NAME are required for delete_deployment_group"
-                                }
                                 cmd = "python3 deletion_script.py delete_deployment_group ${params.APPLICATION_NAME} ${params.DEPLOYMENT_GROUP_NAME}"
                                 break
                             case 'delete_application':
-                                if (!params.APPLICATION_NAME?.trim()) {
-                                    error "APPLICATION_NAME is required for delete_application"
-                                }
-                                cmd = "python3 deletion_script.py delete_application ${params.APPLICATION_NAME}"
-                                break
                             case 'delete_cloudwatch_alarm':
-                                if (!params.APPLICATION_NAME?.trim()) {
-                                    error "APPLICATION_NAME is required for delete_cloudwatch_alarm"
-                                }
-                                cmd = "python3 deletion_script.py delete_cloudwatch_alarm ${params.APPLICATION_NAME}"
+                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.APPLICATION_NAME}"
                                 break
                             case 'unsubscribe_sns':
                             case 'delete_sns_topic':
                             case 'delete_lambda':
-                                if (!params.RESOURCE_ARN?.trim()) {
-                                    error "RESOURCE_ARN is required for ${params.COMMAND}"
-                                }
                                 cmd = "python3 deletion_script.py ${params.COMMAND} ${params.RESOURCE_ARN}"
                                 break
-                            default:
-                                error "Invalid command: ${params.COMMAND}"
                         }
 
                         echo "Using AWS Account: ${env.AWS_ACCOUNT} and Region: ${env.AWS_REGION}"
                         echo "Executing command: ${cmd}"
 
-                        // Execute command with activated virtual environments
                         sh """
                             #!/bin/bash
                             source venv/bin/activate
@@ -96,6 +115,12 @@ pipeline {
     }
 
     post {
+        success {
+            echo "Successfully completed AWS resource deletion"
+        }
+        failure {
+            echo "Failed to delete AWS resource"
+        }
         always {
             echo "Pipeline completed with result: ${currentBuild.result}"
         }
