@@ -4,8 +4,66 @@ import boto3
 from boto3 import client
 from botocore.exceptions import ClientError
 
+def check_deployment_group_exists(client, application_name, deployment_group_name):
+    try:
+        client.get_deployment_group(
+            applicationName=application_name,
+            deploymentGroupName=deployment_group_name
+        )
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'DeploymentGroupDoesNotExistException':
+            return False
+        raise
+
+def check_application_exists(client, application_name):
+    try:
+        client.get_application(applicationName=application_name)
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ApplicationDoesNotExistException':
+            return False
+        raise
+
+def check_alarm_exists(client, alarm_name):
+    try:
+        response = client.describe_alarms(AlarmNames=[alarm_name])
+        return len(response['MetricAlarms']) > 0
+    except ClientError:
+        return False
+
+def check_sns_subscription_exists(client, subscription_arn):
+    try:
+        client.get_subscription_attributes(SubscriptionArn=subscription_arn)
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NotFound':
+            return False
+        raise
+
+def check_sns_topic_exists(client, topic_arn):
+    try:
+        client.get_topic_attributes(TopicArn=topic_arn)
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NotFound':
+            return False
+        raise
+
+def check_lambda_exists(client, function_arn):
+    try:
+        client.get_function(FunctionName=function_arn)
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            return False
+        raise
+
 def delete_deployment_group(application_name, deployment_group_name, region):
     client = boto3.client('codedeploy', region_name=region)
+    if not check_deployment_group_exists(client, application_name, deployment_group_name):
+        print(f"Deployment group '{deployment_group_name}' does not exist in application '{application_name}'")
+        return
     try:
         client.delete_deployment_group(
             applicationName=application_name,
@@ -18,6 +76,9 @@ def delete_deployment_group(application_name, deployment_group_name, region):
 
 def delete_application(application_name, region):
     client = boto3.client('codedeploy', region_name=region)
+    if not check_application_exists(client, application_name):
+        print(f"Application '{application_name}' does not exist")
+        return
     try:
         client.delete_application(
             applicationName=application_name
@@ -29,6 +90,9 @@ def delete_application(application_name, region):
 
 def unsubscribe_sns(subscription_arn, region):
     client = boto3.client('sns', region_name=region)
+    if not check_sns_subscription_exists(client, subscription_arn):
+        print(f"SNS subscription '{subscription_arn}' does not exist")
+        return
     try:
         client.unsubscribe(
             SubscriptionArn=subscription_arn
@@ -40,6 +104,9 @@ def unsubscribe_sns(subscription_arn, region):
 
 def delete_cloudwatch_alarm(alarm_name, region):
     client = boto3.client('cloudwatch', region_name=region)
+    if not check_alarm_exists(client, alarm_name):
+        print(f"CloudWatch alarm '{alarm_name}' does not exist")
+        return
     try:
         client.delete_alarms(
             AlarmNames=[alarm_name]
@@ -51,6 +118,9 @@ def delete_cloudwatch_alarm(alarm_name, region):
 
 def delete_sns_topic(topic_arn, region):
     client = boto3.client('sns', region_name=region)
+    if not check_sns_topic_exists(client, topic_arn):
+        print(f"SNS topic '{topic_arn}' does not exist")
+        return
     try:
         client.delete_topic(
             TopicArn=topic_arn
@@ -62,6 +132,9 @@ def delete_sns_topic(topic_arn, region):
 
 def delete_lambda(function_arn, region):
     client = boto3.client('lambda', region_name=region)
+    if not check_lambda_exists(client, function_arn):
+        print(f"Lambda function '{function_arn}' does not exist")
+        return
     try:
         client.delete_function(
             FunctionName=function_arn

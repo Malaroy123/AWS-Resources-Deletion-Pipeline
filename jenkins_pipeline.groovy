@@ -103,12 +103,16 @@ pipeline {
                         echo "Using AWS Account: ${env.AWS_ACCOUNT} and Region: ${env.AWS_REGION}"
                         echo "Executing command: ${cmd}"
 
-                        sh """
+                        def result = sh(script: """
                             #!/bin/bash
                             source venv/bin/activate
                             export AWS_DEFAULT_REGION=${params.AWS_REGION}
                             ${cmd}
-                        """
+                        """, returnStatus: true)
+
+                        if (result != 0) {
+                            error "Failed to delete resource. Check the logs for details."
+                        }
                     }
                 }
             }
