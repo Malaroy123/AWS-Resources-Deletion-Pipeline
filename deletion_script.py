@@ -152,38 +152,39 @@ def main():
         'delete_sns_topic',
         'delete_lambda'
     ])
-    parser.add_argument('application_name', nargs='?', help='Application name (for delete_deployment_group, delete_application, delete_cloudwatch_alarm)')
+    # First positional argument can be either application_name or resource_arn
+    parser.add_argument('identifier', help='Application name or Resource ARN depending on the command')
+    # Optional second argument for deployment group
     parser.add_argument('deployment_group_name', nargs='?', help='Deployment group name (for delete_deployment_group)')
-    parser.add_argument('resource_arn', nargs='?', help='Resource ARN (for unsubscribe_sns, delete_sns_topic, delete_lambda)')
     parser.add_argument('--region', required=True, help='AWS region')
     
     args = parser.parse_args()
 
     try:
         if args.command == 'delete_deployment_group':
-            if not args.application_name or not args.deployment_group_name:
+            if not args.identifier or not args.deployment_group_name:
                 raise ValueError("Both application name and deployment group name are required for delete_deployment_group")
-            delete_deployment_group(args.application_name, args.deployment_group_name, args.region)
+            delete_deployment_group(args.identifier, args.deployment_group_name, args.region)
         
         elif args.command == 'delete_application':
-            if not args.application_name:
+            if not args.identifier:
                 raise ValueError("Application name is required for delete_application")
-            delete_application(args.application_name, args.region)
+            delete_application(args.identifier, args.region)
         
         elif args.command == 'delete_cloudwatch_alarm':
-            if not args.application_name:
+            if not args.identifier:
                 raise ValueError("Application name is required for delete_cloudwatch_alarm")
-            delete_cloudwatch_alarm(args.application_name, args.region)
+            delete_cloudwatch_alarm(args.identifier, args.region)
         
         elif args.command in ['unsubscribe_sns', 'delete_sns_topic', 'delete_lambda']:
-            if not args.resource_arn:
+            if not args.identifier:
                 raise ValueError(f"Resource ARN is required for {args.command}")
             if args.command == 'unsubscribe_sns':
-                unsubscribe_sns(args.resource_arn, args.region)
+                unsubscribe_sns(args.identifier, args.region)
             elif args.command == 'delete_sns_topic':
-                delete_sns_topic(args.resource_arn, args.region)
+                delete_sns_topic(args.identifier, args.region)
             else:
-                delete_lambda(args.resource_arn, args.region)
+                delete_lambda(args.identifier, args.region)
 
     except Exception as e:
         print(f"Error: {str(e)}")
