@@ -14,10 +14,6 @@ on:
           - delete_cloudwatch_alarm
           - delete_sns_topic
           - delete_lambda
-      aws_account:
-        description: 'AWS Account Number'
-        required: true
-        type: string
       aws_region:
         description: 'AWS Region'
         required: true
@@ -25,28 +21,12 @@ on:
         options:
           - eu-west-1
           - eu-west-2
-      application_name:
-        description: 'CodeDeploy application name (if applicable)'
-        required: false
+      resource_identifier:
+        description: 'Resource Identifier (see description below for what to enter based on your selected command)'
+        required: true
         type: string
-      deployment_group_name:
-        description: 'Deployment group name (if applicable)'
-        required: false
-        type: string
-      subscription_name:
-        description: 'SNS subscription ARN (if applicable)'
-        required: false
-        type: string
-      alarm_name:
-        description: 'CloudWatch alarm name (if applicable)'
-        required: false
-        type: string
-      topic_arn:
-        description: 'SNS topic ARN (if applicable)'
-        required: false
-        type: string
-      function_arn:
-        description: 'Lambda function ARN (if applicable)'
+      secondary_identifier:
+        description: 'Secondary Identifier (only required for delete_deployment_group - enter deployment group name)'
         required: false
         type: string
 
@@ -78,38 +58,14 @@ jobs:
       run: |
         case "${{ github.event.inputs.command }}" in
           "delete_deployment_group")
-            if [ -z "${{ github.event.inputs.application_name }}" ] || [ -z "${{ github.event.inputs.deployment_group_name }}" ]; then
-              echo "Error: APPLICATION_NAME and DEPLOYMENT_GROUP_NAME are required for delete_deployment_group"
+            if [ -z "${{ github.event.inputs.resource_identifier }}" ] || [ -z "${{ github.event.inputs.secondary_identifier }}" ]; then
+              echo "Error: Both application name and deployment group name are required for delete_deployment_group"
               exit 1
             fi
             ;;
-          "delete_application")
-            if [ -z "${{ github.event.inputs.application_name }}" ]; then
-              echo "Error: APPLICATION_NAME is required for delete_application"
-              exit 1
-            fi
-            ;;
-          "unsubscribe_sns")
-            if [ -z "${{ github.event.inputs.subscription_name }}" ]; then
-              echo "Error: SUBSCRIPTION_NAME is required for unsubscribe_sns"
-              exit 1
-            fi
-            ;;
-          "delete_cloudwatch_alarm")
-            if [ -z "${{ github.event.inputs.alarm_name }}" ]; then
-              echo "Error: ALARM_NAME is required for delete_cloudwatch_alarm"
-              exit 1
-            fi
-            ;;
-          "delete_sns_topic")
-            if [ -z "${{ github.event.inputs.topic_arn }}" ]; then
-              echo "Error: TOPIC_ARN is required for delete_sns_topic"
-              exit 1
-            fi
-            ;;
-          "delete_lambda")
-            if [ -z "${{ github.event.inputs.function_arn }}" ]; then
-              echo "Error: FUNCTION_ARN is required for delete_lambda"
+          *)
+            if [ -z "${{ github.event.inputs.resource_identifier }}" ]; then
+              echo "Error: Resource identifier is required"
               exit 1
             fi
             ;;
@@ -120,22 +76,10 @@ jobs:
         CMD="python deletion_script.py ${{ github.event.inputs.command }}"
         case "${{ github.event.inputs.command }}" in
           "delete_deployment_group")
-            CMD="$CMD ${{ github.event.inputs.application_name }} ${{ github.event.inputs.deployment_group_name }}"
+            CMD="$CMD ${{ github.event.inputs.resource_identifier }} ${{ github.event.inputs.secondary_identifier }}"
             ;;
-          "delete_application")
-            CMD="$CMD ${{ github.event.inputs.application_name }}"
-            ;;
-          "unsubscribe_sns")
-            CMD="$CMD ${{ github.event.inputs.subscription_name }}"
-            ;;
-          "delete_cloudwatch_alarm")
-            CMD="$CMD ${{ github.event.inputs.alarm_name }}"
-            ;;
-          "delete_sns_topic")
-            CMD="$CMD ${{ github.event.inputs.topic_arn }}"
-            ;;
-          "delete_lambda")
-            CMD="$CMD ${{ github.event.inputs.function_arn }}"
+          *)
+            CMD="$CMD ${{ github.event.inputs.resource_identifier }}"
             ;;
         esac
         echo "Executing: $CMD"
