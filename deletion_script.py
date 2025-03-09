@@ -62,8 +62,7 @@ def check_lambda_exists(client, function_arn):
 def delete_deployment_group(application_name, deployment_group_name, region):
     client = boto3.client('codedeploy', region_name=region)
     if not check_deployment_group_exists(client, application_name, deployment_group_name):
-        print(f"Deployment group '{deployment_group_name}' does not exist in application '{application_name}'")
-        return
+        raise ResourceNotFoundError(f"Deployment group '{deployment_group_name}' does not exist in application '{application_name}'")
     try:
         client.delete_deployment_group(
             applicationName=application_name,
@@ -77,8 +76,7 @@ def delete_deployment_group(application_name, deployment_group_name, region):
 def delete_application(application_name, region):
     client = boto3.client('codedeploy', region_name=region)
     if not check_application_exists(client, application_name):
-        print(f"Application '{application_name}' does not exist")
-        return
+        raise ResourceNotFoundError(f"Application '{application_name}' does not exist")
     try:
         client.delete_application(
             applicationName=application_name
@@ -91,8 +89,7 @@ def delete_application(application_name, region):
 def unsubscribe_sns(subscription_arn, region):
     client = boto3.client('sns', region_name=region)
     if not check_sns_subscription_exists(client, subscription_arn):
-        print(f"SNS subscription '{subscription_arn}' does not exist")
-        return
+        raise ResourceNotFoundError(f"SNS subscription '{subscription_arn}' does not exist")
     try:
         client.unsubscribe(
             SubscriptionArn=subscription_arn
@@ -105,8 +102,7 @@ def unsubscribe_sns(subscription_arn, region):
 def delete_cloudwatch_alarm(alarm_name, region):
     client = boto3.client('cloudwatch', region_name=region)
     if not check_alarm_exists(client, alarm_name):
-        print(f"CloudWatch alarm '{alarm_name}' does not exist")
-        return
+        raise ResourceNotFoundError(f"CloudWatch alarm '{alarm_name}' does not exist")
     try:
         client.delete_alarms(
             AlarmNames=[alarm_name]
@@ -119,8 +115,7 @@ def delete_cloudwatch_alarm(alarm_name, region):
 def delete_sns_topic(topic_arn, region):
     client = boto3.client('sns', region_name=region)
     if not check_sns_topic_exists(client, topic_arn):
-        print(f"SNS topic '{topic_arn}' does not exist")
-        return
+        raise ResourceNotFoundError(f"SNS topic '{topic_arn}' does not exist")
     try:
         client.delete_topic(
             TopicArn=topic_arn
@@ -133,8 +128,7 @@ def delete_sns_topic(topic_arn, region):
 def delete_lambda(function_arn, region):
     client = boto3.client('lambda', region_name=region)
     if not check_lambda_exists(client, function_arn):
-        print(f"Lambda function '{function_arn}' does not exist")
-        return
+        raise ResourceNotFoundError(f"Lambda function '{function_arn}' does not exist")
     try:
         client.delete_function(
             FunctionName=function_arn
@@ -193,3 +187,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+class ResourceNotFoundError(Exception):
+    pass
