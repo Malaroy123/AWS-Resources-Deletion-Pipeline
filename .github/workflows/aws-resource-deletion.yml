@@ -26,11 +26,11 @@ on:
           - eu-west-1
           - eu-west-2
       resource_arn:
-        description: 'Resource ARN (required for SNS, Lambda operations - leave empty for resources that uses Application Names for deletions)'
+        description: 'Resource ARN (required for SNS subscriptions/topics, Lambda operations - leave empty for resources that uses Application Names for deletions)'
         required: false
         type: string
       application_name:
-        description: 'Application name (required for delete_deployment_group, delete_application, SNS subscriptions, Cloudwatch Alarms)'
+        description: 'Application name (required for delete_deployment_group, delete_application, Cloudwatch Alarms)'
         required: false
         type: string
       deployment_group_name:
@@ -78,19 +78,13 @@ jobs:
               exit 1
             fi
             ;;
-          "unsubscribe_sns")
-            if [ -z "${{ github.event.inputs.application_name }}" ]; then
-              echo "Error: APPLICATION_NAME is required for unsubscribe_sns"
-              exit 1
-            fi
-            ;;
           "delete_cloudwatch_alarm")
             if [ -z "${{ github.event.inputs.application_name }}" ]; then
               echo "Error: APPLICATION_NAME is required for delete_cloudwatch_alarm"
               exit 1
             fi
             ;;
-          "delete_sns_topic"|"delete_lambda")
+          "unsubscribe_sns"|"delete_sns_topic"|"delete_lambda")
             if [ -z "${{ github.event.inputs.resource_arn }}" ]; then
               echo "Error: Resource ARN is required for ${{ github.event.inputs.command }}"
               exit 1
@@ -107,6 +101,7 @@ jobs:
             ;;
           "unsubscribe_sns"|"delete_sns_topic")
             aws sns list-topics
+            aws sns list-subscriptions
             ;;
           "delete_cloudwatch_alarm")
             aws cloudwatch describe-alarms --query 'MetricAlarms[].AlarmName'
@@ -123,10 +118,10 @@ jobs:
           "delete_deployment_group")
             CMD="$CMD ${{ github.event.inputs.application_name }} ${{ github.event.inputs.deployment_group_name }}"
             ;;
-          "delete_application"|"delete_cloudwatch_alarm"|"unsubscribe_sns")
+          "delete_application"|"delete_cloudwatch_alarm")
             CMD="$CMD ${{ github.event.inputs.application_name }}"
             ;;
-          "delete_sns_topic"|"delete_lambda")
+          "unsubscribe_sns"|"delete_sns_topic"|"delete_lambda")
             CMD="$CMD ${{ github.event.inputs.resource_arn }}"
             ;;
         esac
