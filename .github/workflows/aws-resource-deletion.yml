@@ -25,12 +25,12 @@ on:
         options:
           - eu-west-1
           - eu-west-2
-      resource_list:
-        description: 'Select the specific resource (enter manually for now - GitHub Actions does not support dynamic dropdowns)'
-        required: true
+      resource_arn:
+        description: 'Resource ARN (required for SNS, Lambda operations - leave empty for resources that uses Application Names for deletions)'
+        required: false
         type: string
       application_name:
-        description: 'CodeDeploy application name (required for delete_deployment_group and delete_application)'
+        description: 'Application name (required for delete_deployment_group, delete_application, SNS subscriptions, Cloudwatch Alarms)'
         required: false
         type: string
       deployment_group_name:
@@ -61,7 +61,7 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ github.event.inputs.aws_region }}
-        role-to-assume: arn:aws:iam::${{ github.event.inputs.aws_account }}:role/YourRoleName  # Add if using role assumption
+        # role-to-assume: arn:aws:iam::${{ github.event.inputs.aws_account }}:role/YourRoleName  # Uncomment if using role assumption
         
     - name: Validate inputs
       run: |
@@ -78,9 +78,21 @@ jobs:
               exit 1
             fi
             ;;
-          *)
-            if [ -z "${{ github.event.inputs.resource_list }}" ]; then
-              echo "Error: Resource selection is required"
+          "unsubscribe_sns")
+            if [ -z "${{ github.event.inputs.application_name }}" ]; then
+              echo "Error: APPLICATION_NAME is required for unsubscribe_sns"
+              exit 1
+            fi
+            ;;
+          "delete_cloudwatch_alarm")
+            if [ -z "${{ github.event.inputs.application_name }}" ]; then
+              echo "Error: APPLICATION_NAME is required for delete_cloudwatch_alarm"
+              exit 1
+            fi
+            ;;
+          "delete_sns_topic"|"delete_lambda")
+            if [ -z "${{ github.event.inputs.resource_arn }}" ]; then
+              echo "Error: Resource ARN is required for ${{ github.event.inputs.command }}"
               exit 1
             fi
             ;;
@@ -111,11 +123,11 @@ jobs:
           "delete_deployment_group")
             CMD="$CMD ${{ github.event.inputs.application_name }} ${{ github.event.inputs.deployment_group_name }}"
             ;;
-          "delete_application")
+          "delete_application"|"delete_cloudwatch_alarm"|"unsubscribe_sns")
             CMD="$CMD ${{ github.event.inputs.application_name }}"
             ;;
-          *)
-            CMD="$CMD ${{ github.event.inputs.resource_list }}"
+          "delete_sns_topic"|"delete_lambda")
+            CMD="$CMD ${{ github.event.inputs.resource_arn }}"
             ;;
         esac
         echo "Executing: $CMD"
