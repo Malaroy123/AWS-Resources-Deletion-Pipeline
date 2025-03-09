@@ -1,0 +1,142 @@
+name: AWS Resource Deletion
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Select the resource to delete'
+        required: true
+        type: choice
+        options:
+          - delete_deployment_group
+          - delete_application
+          - unsubscribe_sns
+          - delete_cloudwatch_alarm
+          - delete_sns_topic
+          - delete_lambda
+      aws_account:
+        description: 'AWS Account Number'
+        required: true
+        type: string
+      aws_region:
+        description: 'AWS Region'
+        required: true
+        type: choice
+        options:
+          - eu-west-1
+          - eu-west-2
+      application_name:
+        description: 'CodeDeploy application name (if applicable)'
+        required: false
+        type: string
+      deployment_group_name:
+        description: 'Deployment group name (if applicable)'
+        required: false
+        type: string
+      subscription_name:
+        description: 'SNS subscription ARN (if applicable)'
+        required: false
+        type: string
+      alarm_name:
+        description: 'CloudWatch alarm name (if applicable)'
+        required: false
+        type: string
+      topic_arn:
+        description: 'SNS topic ARN (if applicable)'
+        required: false
+        type: string
+      function_arn:
+        description: 'Lambda function ARN (if applicable)'
+        required: false
+        type: string
+
+jobs:
+  delete-resource:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ github.event.inputs.aws_region }}
+        
+    - name: Validate inputs
+      run: |
+        case "${{ github.event.inputs.command }}" in
+          "delete_deployment_group")
+            if [ -z "${{ github.event.inputs.application_name }}" ] || [ -z "${{ github.event.inputs.deployment_group_name }}" ]; then
+              echo "Error: APPLICATION_NAME and DEPLOYMENT_GROUP_NAME are required for delete_deployment_group"
+              exit 1
+            fi
+            ;;
+          "delete_application")
+            if [ -z "${{ github.event.inputs.application_name }}" ]; then
+              echo "Error: APPLICATION_NAME is required for delete_application"
+              exit 1
+            fi
+            ;;
+          "unsubscribe_sns")
+            if [ -z "${{ github.event.inputs.subscription_name }}" ]; then
+              echo "Error: SUBSCRIPTION_NAME is required for unsubscribe_sns"
+              exit 1
+            fi
+            ;;
+          "delete_cloudwatch_alarm")
+            if [ -z "${{ github.event.inputs.alarm_name }}" ]; then
+              echo "Error: ALARM_NAME is required for delete_cloudwatch_alarm"
+              exit 1
+            fi
+            ;;
+          "delete_sns_topic")
+            if [ -z "${{ github.event.inputs.topic_arn }}" ]; then
+              echo "Error: TOPIC_ARN is required for delete_sns_topic"
+              exit 1
+            fi
+            ;;
+          "delete_lambda")
+            if [ -z "${{ github.event.inputs.function_arn }}" ]; then
+              echo "Error: FUNCTION_ARN is required for delete_lambda"
+              exit 1
+            fi
+            ;;
+        esac
+        
+    - name: Execute deletion script
+      run: |
+        CMD="python deletion_script.py ${{ github.event.inputs.command }}"
+        case "${{ github.event.inputs.command }}" in
+          "delete_deployment_group")
+            CMD="$CMD ${{ github.event.inputs.application_name }} ${{ github.event.inputs.deployment_group_name }}"
+            ;;
+          "delete_application")
+            CMD="$CMD ${{ github.event.inputs.application_name }}"
+            ;;
+          "unsubscribe_sns")
+            CMD="$CMD ${{ github.event.inputs.subscription_name }}"
+            ;;
+          "delete_cloudwatch_alarm")
+            CMD="$CMD ${{ github.event.inputs.alarm_name }}"
+            ;;
+          "delete_sns_topic")
+            CMD="$CMD ${{ github.event.inputs.topic_arn }}"
+            ;;
+          "delete_lambda")
+            CMD="$CMD ${{ github.event.inputs.function_arn }}"
+            ;;
+        esac
+        echo "Executing: $CMD"
+        $CMD 
