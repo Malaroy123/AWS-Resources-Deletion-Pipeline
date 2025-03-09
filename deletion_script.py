@@ -4,6 +4,10 @@ import boto3
 from boto3 import client
 from botocore.exceptions import ClientError
 
+# Define custom exception at the top of the file
+class ResourceNotFoundError(Exception):
+    pass
+
 def check_deployment_group_exists(client, application_name, deployment_group_name):
     try:
         client.get_deployment_group(
@@ -86,19 +90,6 @@ def delete_application(application_name, region):
         print(f"Error deleting application: {e}")
         raise
 
-def unsubscribe_sns(subscription_arn, region):
-    client = boto3.client('sns', region_name=region)
-    if not check_sns_subscription_exists(client, subscription_arn):
-        raise ResourceNotFoundError(f"SNS subscription '{subscription_arn}' does not exist")
-    try:
-        client.unsubscribe(
-            SubscriptionArn=subscription_arn
-        )
-        print(f"Successfully unsubscribed from SNS topic: {subscription_arn}")
-    except ClientError as e:
-        print(f"Error unsubscribing from SNS topic: {e}")
-        raise
-
 def delete_cloudwatch_alarm(alarm_name, region):
     client = boto3.client('cloudwatch', region_name=region)
     if not check_alarm_exists(client, alarm_name):
@@ -136,6 +127,19 @@ def delete_lambda(function_arn, region):
         print(f"Successfully deleted Lambda function: {function_arn}")
     except ClientError as e:
         print(f"Error deleting Lambda function: {e}")
+        raise
+
+def unsubscribe_sns(subscription_arn, region):
+    client = boto3.client('sns', region_name=region)
+    if not check_sns_subscription_exists(client, subscription_arn):
+        raise ResourceNotFoundError(f"SNS subscription '{subscription_arn}' does not exist")
+    try:
+        client.unsubscribe(
+            SubscriptionArn=subscription_arn
+        )
+        print(f"Successfully unsubscribed from SNS topic: {subscription_arn}")
+    except ClientError as e:
+        print(f"Error unsubscribing from SNS topic: {e}")
         raise
 
 def main():
@@ -187,6 +191,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-class ResourceNotFoundError(Exception):
-    pass
