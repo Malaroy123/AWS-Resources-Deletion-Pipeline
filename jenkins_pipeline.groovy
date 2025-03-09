@@ -87,16 +87,16 @@ pipeline {
                         def cmd = ""
                         switch(params.COMMAND) {
                             case 'delete_deployment_group':
-                                cmd = "python3 deletion_script.py delete_deployment_group ${params.APPLICATION_NAME} ${params.DEPLOYMENT_GROUP_NAME}"
+                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.APPLICATION_NAME} ${params.DEPLOYMENT_GROUP_NAME} --region ${params.AWS_REGION}"
                                 break
                             case 'delete_application':
                             case 'delete_cloudwatch_alarm':
-                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.APPLICATION_NAME}"
+                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.APPLICATION_NAME} --region ${params.AWS_REGION}"
                                 break
                             case 'unsubscribe_sns':
                             case 'delete_sns_topic':
                             case 'delete_lambda':
-                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.RESOURCE_ARN}"
+                                cmd = "python3 deletion_script.py ${params.COMMAND} ${params.RESOURCE_ARN} --region ${params.AWS_REGION}"
                                 break
                         }
 
@@ -106,6 +106,7 @@ pipeline {
                         sh """
                             #!/bin/bash
                             source venv/bin/activate
+                            export AWS_DEFAULT_REGION=${params.AWS_REGION}
                             ${cmd}
                         """
                     }
