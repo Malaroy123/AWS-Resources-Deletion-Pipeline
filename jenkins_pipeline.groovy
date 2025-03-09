@@ -21,22 +21,22 @@ pipeline {
     environment {
         AWS_ACCOUNT = "${params.AWS_ACCOUNT}"
         AWS_REGION = "${params.AWS_REGION}"
-        VENV_PATH = "${WORKSPACE}/venv"
     }
 
     stages {
         stage('Setup Python') {
             steps {
                 sh '''
-                    # Create virtual environment if it doesn't exist
-                    python3 -m venv ${VENV_PATH}
+                    #!/bin/bash
+                    # Create virtual environment
+                    python3 -m venv venv
                     
                     # Activate virtual environment
-                    . ${VENV_PATH}/bin/activate
+                    source venv/bin/activate
                     
-                    # Upgrade pip and install requirements
-                    python3 -m pip install --upgrade pip
-                    python3 -m pip install -r requirements.txt
+                    # Install requirements
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
                 '''
             }
         }
@@ -83,9 +83,10 @@ pipeline {
                         echo "Using AWS Account: ${env.AWS_ACCOUNT} and Region: ${env.AWS_REGION}"
                         echo "Executing command: ${cmd}"
 
-                        // Execute command with activated virtual environment
+                        // Execute command with activated virtual environments
                         sh """
-                            . ${VENV_PATH}/bin/activate
+                            #!/bin/bash
+                            source venv/bin/activate
                             ${cmd}
                         """
                     }
