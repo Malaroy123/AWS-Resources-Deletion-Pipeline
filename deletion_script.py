@@ -42,16 +42,16 @@ def delete_codedeploy_application(application_name):
         return None
 
 # Function to delete sns subscription
-def unsubscribe_sns(subscription_name):
+def unsubscribe_sns(subscription_arn):
     # Create an SNS client
     sns_client = boto3.client('sns')
 
     try:
         # Call the unsubscribe API
         response = sns_client.unsubscribe(
-            SubscriptionArn=subscription_name
+            SubscriptionArn=subscription_arn
         )
-        print(f"Subscription '{subscription_name}' has been successfully unsubscribed.")
+        print(f"Subscription '{subscription_arn}' has been successfully unsubscribed.")
         return response
 
     except ClientError as e:
@@ -111,7 +111,7 @@ def main():
 
     # Subparser for deleting subscriptions
     unsubscribe_sns_parser = subparsers.add_parser('unsubscribe_sns', help='Delete SNS subscriptions')
-    unsubscribe_sns_parser.add_argument('subscription_name', help='ARN of the sns subscription')
+    unsubscribe_sns_parser.add_argument('subscription_arn', help='ARN of the sns subscription')
 
     # Subparser for deleting cloudwatch
     delete_alarm_parser= subparsers.add_parser('delete_cloudwatch_alarm', help='Delete cloudwatch alarm')
