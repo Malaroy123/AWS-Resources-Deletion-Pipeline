@@ -25,29 +25,35 @@ AWS-Resources-Deletion-Pipeline/
 
 ### 1. Clone the repository
 
-```bash
+```
 git clone https://github.com/Malaroy123/AWS-Resources-Deletion-Pipeline.git
 cd AWS-Resources-Deletion-Pipeline
+```
 
 ### 2. Install Python dependencies
 
 ```
 pip install -r requirements.txt
+```
 
 ### 3. Configure AWS credentials
 Make sure AWS CLI is installed and configured:
 ```
 aws configure
+```
 
 Or set environment variables:
+
 ```
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
+```
 
 ## 🧪 Usage
 ### 🔧 Manual Run (for testing)
 ```
 python deletion_script.py
+```
 
 ## 🌀 Jenkins Pipeline Run
 - Import the jenkins_pipeline.groovy into your Jenkins job.
