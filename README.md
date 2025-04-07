@@ -13,13 +13,14 @@ A Jenkins-based/Github actions automated pipeline to detect and delete AWS resou
 
 ## 🗂️ Project Structure
 
-```bash
+```
 AWS-Resources-Deletion-Pipeline/
 ├── .github/workflows/         # GitHub Actions workflows 
 ├── deletion_script.py         # Main Python script for deletion logic
 ├── jenkins_pipeline.groovy    # Jenkins pipeline definition
 ├── requirements.txt           # Python dependencies
 └── README.md                  # You're reading it!
+```
 
 ## 🛠️ Setup Instructions
 
