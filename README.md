@@ -25,11 +25,6 @@ AWS-Resources-Deletion-Pipeline/
 
 ### 1. Clone the repository
 
-```
-git clone https://github.com/Malaroy123/AWS-Resources-Deletion-Pipeline.git
-cd AWS-Resources-Deletion-Pipeline
-```
-
 ### 2. Install Python dependencies
 
 ```
@@ -38,6 +33,7 @@ pip install -r requirements.txt
 
 ### 3. Configure AWS credentials
 Make sure AWS CLI is installed and configured:
+
 ```
 aws configure
 ```
